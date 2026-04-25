@@ -253,7 +253,19 @@ jobs:
 
           # Poll until required checks finish
           for i in {1..60}; do
-            INCOMPLETE=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs" --jq "$INCOMPLETE_JQ")
+            CHECK_RUNS_JSON=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs" --jq '.' 2>/dev/null || true)
+            if [ -z "$CHECK_RUNS_JSON" ]; then
+              echo "Failed to fetch check-runs from GitHub API. Treating as failing."
+              echo "status=failing" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            INCOMPLETE=$(echo "$CHECK_RUNS_JSON" | jq "$INCOMPLETE_JQ") || {
+              echo "Failed to parse check-runs response. Treating as failing."
+              echo "status=failing" >> "$GITHUB_OUTPUT"
+              exit 0
+            }
+
             if [ "$INCOMPLETE" -gt 0 ]; then
               echo "Waiting for ${INCOMPLETE} required check(s) to complete..."
               sleep 10
@@ -262,8 +274,20 @@ jobs:
             fi
           done
 
-          CONCLUSIONS=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs" --jq "$CONCLUSIONS_JQ")
-          if echo "$CONCLUSIONS" | grep -qE 'failure|cancelled|timed_out'; then
+          CHECK_RUNS_JSON=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs" --jq '.' 2>/dev/null || true)
+          if [ -z "$CHECK_RUNS_JSON" ]; then
+            echo "Failed to fetch check-runs from GitHub API. Treating as failing."
+            echo "status=failing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CONCLUSIONS=$(echo "$CHECK_RUNS_JSON" | jq -r "$CONCLUSIONS_JQ") || {
+            echo "Failed to parse check-runs response. Treating as failing."
+            echo "status=failing" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          if echo "$CONCLUSIONS" | grep -qE 'failure|cancelled|timed_out|action_required|startup_failure'; then
             echo "status=failing" >> "$GITHUB_OUTPUT"
           else
             echo "status=passing" >> "$GITHUB_OUTPUT"
