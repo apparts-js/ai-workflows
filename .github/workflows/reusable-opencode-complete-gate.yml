@@ -408,6 +408,15 @@ jobs:
         run: |
           opencode run --model opencode-go/kimi-k2.6 "Load the review-pr skill and run it for PR #${{ steps.meta.outputs.pr_number }}"
 
+      - name: Promote PR to ready for review
+        if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing' && steps.validate.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr ready "$PR_NUMBER" --repo "$REPO" || true
+
       - name: Reset autofix attempt labels
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing' && steps.validate.outputs.should_run == 'true'
         env:
