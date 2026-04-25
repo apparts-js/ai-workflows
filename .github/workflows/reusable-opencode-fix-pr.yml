@@ -43,13 +43,14 @@ jobs:
           git config user.name "opencode[bot]"
           git config user.email "opencode[bot]@users.noreply.github.com"
 
-      - name: Remove complete label
+      - name: Remove auto-review label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.inputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
-          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "complete" || true
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "auto-review" || true
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "ready for review" || true
 
       - name: Install OpenCode
         run: npm install -g opencode-ai@1.14.24
@@ -66,11 +67,11 @@ jobs:
           fi
           opencode run --model opencode-go/kimi-k2.6 "Load the fix-pr skill and run it for PR #${{ github.event.issue.number || github.event.inputs.pr_number }} with context ${CONTEXT}"
 
-      - name: Re-add complete label
+      - name: Re-add auto-review label
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.inputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
-          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "complete"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "auto-review"

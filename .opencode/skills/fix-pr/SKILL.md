@@ -1,6 +1,6 @@
 ---
 name: fix-pr
-description: Fix a PR that has failing CI or unresolved review comments. Checks out the branch, merges base, handles merge conflicts, diagnoses, applies fixes, commits, and pushes. The calling workflow manages the 'complete' label.
+description: Fix a PR that has failing CI or unresolved review comments. Checks out the branch, merges base, handles merge conflicts, diagnoses, applies fixes, commits, and pushes. The calling workflow manages the 'auto-review' label.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 context: fork
 agent: general-purpose
@@ -66,7 +66,7 @@ Before attempting any fix, determine whether the implementation is actually fini
      ```
      Skill("plan-and-implement", args="$ISSUE_NUM")
      ```
-   - **Do not proceed to Fix CI failures or Address review comments.** The complete-gate will re-invoke `fix-pr` after `plan-and-implement` finishes.
+   - **Do not proceed to Fix CI failures or Address review comments.** The auto-review gate will re-invoke `fix-pr` after `plan-and-implement` finishes.
 
 4. **If all subtasks are checked** (or no associated issue was found):
    - Proceed to the relevant section below.
@@ -116,4 +116,4 @@ If context is `review-comments`:
 
 ## After fixing
 
-Push your changes. The complete-gate workflow will monitor CI and re-invoke you if further fixes are needed. **Do not run tests locally.**
+Push your changes. The auto-review gate workflow will monitor CI and re-invoke you if further fixes are needed. **Do not run tests locally.**

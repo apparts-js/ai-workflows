@@ -10,7 +10,7 @@ jobs:
   complete-gate:
     if: |
       github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'pull_request' && github.event.label.name == 'complete') ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'auto-review') ||
       github.event_name == 'check_run' ||
       github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
             --local-dir .opencode/skills \
             --out-dir .opencode/skills
 
-      - name: Ensure autofix attempt labels exist
+      - name: Ensure labels exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -48,6 +48,7 @@ jobs:
             gh label create "autofix-attempts-$i" --repo "$REPO" --color "d93f0b" --description "Autofix attempt counter" || true
           done
           gh label create "autofix-exhausted" --repo "$REPO" --color "b60205" --description "Autofix retries exhausted — manual intervention required" || true
+          gh label create "ready for review" --repo "$REPO" --color "0e8a16" --description "Human reviewer needed" || true
 
       - name: Determine PR number and head SHA
         id: meta
@@ -92,8 +93,8 @@ jobs:
           fi
 
           PR_LABELS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels -q '.labels[].name')
-          if ! echo "$PR_LABELS" | grep -q "^complete$"; then
-            echo "PR does not have 'complete' label."
+          if ! echo "$PR_LABELS" | grep -q "^auto-review$"; then
+            echo "PR does not have 'auto-review' label."
             echo "should_run=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -159,14 +160,14 @@ jobs:
             echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Remove complete label (conflicts)
+      - name: Remove auto-review label (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.validate.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
-          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "complete"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "auto-review"
 
       - name: Resolve merge conflicts
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
@@ -191,14 +192,15 @@ jobs:
           NEXT=$((COUNT + 1))
           gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "autofix-attempts-$NEXT"
 
-      - name: Re-add complete label (conflicts)
+      - name: Re-add auto-review label (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
-          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "complete"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "auto-review"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "ready for review" || true
 
       - name: Post exhaustion warning (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted == 'true' && steps.validate.outputs.should_run == 'true'
@@ -301,17 +303,61 @@ jobs:
             echo "status=passing" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Remove complete label (CI failing)
+      - name: Check implementation completeness
+        if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
+        id: completeness
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          PR_BODY=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json body -q '.body')
+          ISSUE_NUMBERS=$(echo "$PR_BODY" | grep -oEi '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]*#[0-9]+' | grep -oE '[0-9]+' || true)
+
+          UNCHECKED=0
+          ISSUE_NUM=""
+          if [ -n "$ISSUE_NUMBERS" ]; then
+            for ISSUE in $ISSUE_NUMBERS; do
+              BODY=$(gh issue view "$ISSUE" --repo "$REPO" --json body -q '.body' 2>/dev/null || true)
+              COMMENTS=$(gh issue view "$ISSUE" --repo "$REPO" --json comments -q '.comments[].body' 2>/dev/null || true)
+              COUNT=$(echo "$BODY"$'\n'"$COMMENTS" | grep -c '\- \[ \]' || true)
+              if [ "$COUNT" -gt 0 ]; then
+                UNCHECKED=$COUNT
+                ISSUE_NUM=$ISSUE
+                break
+              fi
+            done
+          fi
+
+          if [ "$UNCHECKED" -gt 0 ]; then
+            echo "implementation_complete=false" >> "$GITHUB_OUTPUT"
+            echo "issue_number=${ISSUE_NUM}" >> "$GITHUB_OUTPUT"
+            echo "Found $UNCHECKED unchecked subtasks in issue #$ISSUE_NUM"
+          else
+            echo "implementation_complete=true" >> "$GITHUB_OUTPUT"
+            echo "No unchecked subtasks found"
+          fi
+
+      - name: Remove auto-review label (CI failing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
-          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "complete"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "auto-review"
 
-      - name: Run fix-pr skill (CI failing)
-        if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
+      - name: Run plan-and-implement skill (CI failing, incomplete)
+        if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
+        run: |
+          opencode run --model opencode-go/kimi-k2.6 "Load the plan-and-implement skill and run it for issue #${{ steps.completeness.outputs.issue_number }}"
+
+      - name: Run fix-pr skill (CI failing, complete)
+        if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
@@ -319,8 +365,8 @@ jobs:
         run: |
           opencode run --model opencode-go/kimi-k2.6 "Load the fix-pr skill and run it for PR #${{ steps.meta.outputs.pr_number }} with context ci-failing"
 
-      - name: Record autofix attempt (CI failing)
-        if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
+      - name: Record autofix attempt (CI failing, complete)
+        if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
@@ -333,14 +379,15 @@ jobs:
           NEXT=$((COUNT + 1))
           gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "autofix-attempts-$NEXT"
 
-      - name: Re-add complete label (CI failing)
+      - name: Re-add auto-review label (CI failing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
-          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "complete"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "auto-review"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "ready for review" || true
 
       - name: Post exhaustion warning (CI failing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted == 'true' && steps.validate.outputs.should_run == 'true'
@@ -372,3 +419,17 @@ jobs:
             gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "autofix-attempts-$i" || true
           done
           gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "autofix-exhausted" || true
+
+      - name: Add ready for review label
+        if: |
+          steps.validate.outputs.should_run == 'true' && (
+            (steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted == 'true') ||
+            (steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing') ||
+            (steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted == 'true')
+          )
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "ready for review"
