@@ -37,6 +37,7 @@ apparts-js/ai-workflows/
 │       ├── opencode-code-review.yml
 │       ├── opencode-complete-gate.yml
 │       └── opencode-plan-and-implement.yml
+├── .opencode.json              # Example OpenCode config — tells the CLI where skills live
 ├── README.md
 └── USER_GUIDE.md              # Tutorial on how to use the automation
 ```
@@ -55,6 +56,8 @@ Copy **only** `wrappers/opencode-master.yml` into your repo's `.github/workflows
 cp wrappers/master/opencode-master.yml  <target-repo>/.github/workflows/opencode.yml
 ```
 
+> **Note on permissions:** The master wrapper declares a **union** of all permissions (`contents: write`, `pull-requests: write`, `issues: write`, `checks: read`, `id-token: write`). Every routed job inherits this same broad set because GitHub Actions ignores `permissions` declared inside called reusable workflows. If you need finer-grained control per trigger, use Option B.
+
 ### Option B — Individual wrappers
 
 If you prefer separate workflow files in the Actions UI, copy the individual wrappers instead:
@@ -67,6 +70,8 @@ cp wrappers/individual/opencode-complete-gate.yml   <target-repo>/.github/workfl
 cp wrappers/individual/opencode-plan-and-implement.yml <target-repo>/.github/workflows/
 ```
 
+Each wrapper declares only the permissions that specific workflow needs.
+
 ### Optional local skill references
 
 For repo-specific checklists that override or extend the generic skills, add:
@@ -75,6 +80,20 @@ For repo-specific checklists that override or extend the generic skills, add:
 - `.opencode/skills/verify-tests/references/gotchas.md`
 
 Then remove any duplicated generic skills/workflows from the target repo.
+
+### `.opencode.json` configuration
+
+Add a `.opencode.json` file to the **root** of your target repo so the OpenCode CLI knows where to find the bootstrapped skills:
+
+```json
+{
+  "skills": {
+    "paths": [".opencode/skills"]
+  }
+}
+```
+
+This prevents opencode from reading it's skills from `.claude/skills`.
 
 ## Skill overrides
 

@@ -25,5 +25,12 @@ on:
 
 jobs:
   master:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: read
     uses: apparts-js/ai-workflows/.github/workflows/reusable-opencode-master.yml@main
     secrets: inherit
