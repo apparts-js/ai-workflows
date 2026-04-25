@@ -58,10 +58,17 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "check_run" ]; then
             PR_NUMBER="${{ github.event.check_run.pull_requests[0].number }}"
+            HEAD_SHA="${{ github.event.check_run.head_sha }}"
           elif [ "${{ github.event_name }}" == "workflow_run" ]; then
             PR_NUMBER="${{ github.event.workflow_run.pull_requests[0].number }}"
+            HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
           else
             PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
+          fi
+
+          # Fallback: find PR by head SHA if pull_requests array was empty
+          if [ -z "$PR_NUMBER" ] && [ -n "$HEAD_SHA" ]; then
+            PR_NUMBER=$(gh pr list --repo "$REPO" --state open --json number,headRefOid -q ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number")
           fi
 
           if [ -z "$PR_NUMBER" ]; then
@@ -70,7 +77,9 @@ jobs:
             exit 0
           fi
 
-          HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid -q .headRefOid)
+          if [ -z "$HEAD_SHA" ]; then
+            HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid -q .headRefOid)
+          fi
           echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
 

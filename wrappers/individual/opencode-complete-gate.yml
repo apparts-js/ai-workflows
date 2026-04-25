@@ -5,8 +5,6 @@ on:
     types: [labeled]
   check_run:
     types: [completed]
-  workflow_run:
-    types: [completed]
   workflow_dispatch:
     inputs:
       pr_number:
