@@ -19,36 +19,35 @@ You are invoked to drive an issue labeled `opencode` to completion.
    REPO=$(git remote get-url origin | sed -E 's/.*github\.com[/:]([^/]+)\/([^/]+?)(\.git)?$/\1\/\2/')
    OWNER=$(echo "$REPO" | cut -d/ -f1)
    ```
-2. Fetch the issue body:
+2. **Read the issue and all its comments.** The original issue text must never be modified. Subtasks are tracked in a separate bot comment.
    ```bash
-   gh issue view "$ARGUMENTS" --json body,title,state -q '.body'
+   gh issue view "$ARGUMENTS" --json body,title,state,comments -q '.body'
+   gh issue view "$ARGUMENTS" --json comments -q '.comments[].body'
    ```
 
 ## State detection
 
-- **No subtasks**: Issue body lacks `## Subtasks`.
+- **No subtasks**: No comment on the issue contains `## Subtasks`.
 - **No PR**: No open PR whose head is `{owner}:${ARGUMENTS}-*`.
 - **In progress**: Open draft PR exists with unchecked subtasks.
 - **Done**: All subtasks checked.
 
 ## Plan
 
-If no subtasks exist, decompose the issue into small, committable steps. Append:
+If no subtasks exist, decompose the issue into small, committable steps.
 
-```text
-## Subtasks
-- [ ] Write stubs and failing tests
-- [ ] Implement logic to pass tests
-- [ ] Update docs / README if needed
-- [ ] Open draft PR
-- [ ] Fix issues found in audit
-- [ ] CI passes and PR is ready for review
-```
+**Important:** The original issue body must remain untouched. Post subtasks as a new comment instead.
 
-Update the issue body:
-```bash
-gh issue edit "$ARGUMENTS" --body "..."
-```
+1. Post a comment with the subtasks:
+   ```bash
+   gh issue comment "$ARGUMENTS" --body "## Subtasks
+   - [ ] Write stubs and failing tests
+   - [ ] Implement logic to pass tests
+   - [ ] Update docs / README if needed
+   - [ ] Open draft PR
+   - [ ] Fix issues found in audit
+   - [ ] CI passes and PR is ready for review"
+   ```
 
 ## Create PR
 
@@ -73,7 +72,7 @@ gh pr create \
   --base master
 ```
 
-Check off "Open draft PR" in the issue.
+Check off "Open draft PR" in the subtasks comment (do not modify the issue body).
 
 ## Merge base branch before implementing
 
@@ -123,10 +122,16 @@ For each unchecked subtask up to "Fix issues found in audit":
    git commit -m "feat: <description> (#${ARGUMENTS})"
    git push
    ```
-4. Update the issue checkbox:
-    - Fetch current body: `gh issue view "$ARGUMENTS" --json body -q '.body'`
-    - Replace `- [ ] <exact text>` with `- [x] <exact text>`.
-    - Apply the update: `gh issue edit "$ARGUMENTS" --body "..."`
+4. Update the subtasks comment checkbox:
+    - Read all comments to find the one containing `## Subtasks`:
+      ```bash
+      gh issue view "$ARGUMENTS" --json comments -q '.comments[] | select(.body | contains("## Subtasks")) | {id,body}'
+      ```
+    - Replace `- [ ] <exact text>` with `- [x] <exact text>` inside that comment body.
+    - Edit the comment via the API (preserving the original issue body):
+      ```bash
+      gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="${UPDATED_COMMENT_BODY}"
+      ```
 
 ## Self-check before finalizing
 
