@@ -30,11 +30,14 @@ Parse `$ARGUMENTS` as: `<pr-number> <context>` where context is `ci-failing` or 
    - `HEAD` is your branch's code; `origin/<base-ref>` is the incoming base.
    - When both sides contain real logic, merge them into a correct result rather than blindly picking one side.
    - `git add <file>` after resolving each one.
-   - When all conflicts are resolved, commit the merge:
-     ```bash
-     git commit -m "chore: merge ${BASE} into ${BRANCH}"
-     git push
-     ```
+    - When all conflicts are resolved, format and commit the merge:
+      ```bash
+      git add <resolved-files>
+      npx prettier --write $(git diff --cached --name-only) 2>/dev/null || true
+      git add $(git diff --cached --name-only) 2>/dev/null || true
+      git commit -m "chore: merge ${BASE} into ${BRANCH}"
+      git push
+      ```
 4. If the merge conflict resolution is complex or you are unsure, invoke the `resolve-pr-conflicts` skill:
     ```
     Skill("resolve-pr-conflicts", args="<pr-number>")
@@ -82,9 +85,11 @@ If context is `ci-failing`:
    ```
    Read the errors carefully. Understand *what* failed and *why* before making any changes.
 2. Fix the root cause.
-3. Commit and push:
+3. Format and commit:
    ```bash
    git add <specific-files>
+   npx prettier --write $(git diff --cached --name-only) 2>/dev/null || true
+   git add $(git diff --cached --name-only) 2>/dev/null || true
    git commit -m "fix: resolve CI failure – <description> (#<issue_number>)"
    git push
    ```
@@ -101,7 +106,13 @@ If context is `review-comments`:
    gh pr view <pr-number> --json comments,reviews
    ```
 2. For each unresolved comment:
-    - **Code change**: make change, commit `fix: address review comment – <description>`.
+    - **Code change**: make change, then format and commit:
+      ```bash
+      git add <specific-files>
+      npx prettier --write $(git diff --cached --name-only) 2>/dev/null || true
+      git add $(git diff --cached --name-only) 2>/dev/null || true
+      git commit -m "fix: address review comment – <description>"
+      ```
     - **Question**: reply via `gh pr comment <pr-number> --body "..."`.
     - **Outdated**: ignore.
 3. Push:

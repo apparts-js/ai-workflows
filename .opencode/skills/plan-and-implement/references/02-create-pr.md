@@ -61,9 +61,11 @@ Create a branch, push it, open a draft PR, check off "Open draft PR", and immedi
 
 6. Write stubs and failing tests.
 
-7. Commit and push:
+7. Format and commit:
    ```bash
    git add <specific-files>
+   npx prettier --write $(git diff --cached --name-only) 2>/dev/null || true
+   git add $(git diff --cached --name-only) 2>/dev/null || true
    git commit -m "feat: add stubs and failing tests (#${ARGUMENTS})"
    git push
    ```

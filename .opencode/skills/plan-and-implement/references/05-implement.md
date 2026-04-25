@@ -24,12 +24,14 @@ Complete the remaining unchecked subtasks: "Implement logic to pass tests" and "
 
 2. For each unchecked subtask up to "Fix issues found in audit":
    a. Do the work (implement logic, refactor, write docs).
-   b. Commit and push:
-      ```bash
-      git add <specific-files>
-      git commit -m "feat: <description> (#${ARGUMENTS})"
-      git push
-      ```
+    b. Format and commit:
+       ```bash
+       git add <specific-files>
+       npx prettier --write $(git diff --cached --name-only) 2>/dev/null || true
+       git add $(git diff --cached --name-only) 2>/dev/null || true
+       git commit -m "feat: <description> (#${ARGUMENTS})"
+       git push
+       ```
    c. Check off the subtask in the subtasks comment:
       - Find the subtasks comment:
         ```bash

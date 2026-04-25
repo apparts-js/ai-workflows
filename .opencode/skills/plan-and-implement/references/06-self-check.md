@@ -39,12 +39,14 @@ Run the same audits that `review-pr` runs and fix any `must-fix` findings before
 
 5. For each `must-fix` finding:
    - Apply the provided fix using `Write` or `Edit`.
-   - Commit and push:
-     ```bash
-     git add <specific-files>
-     git commit -m "fix: resolve self-check finding – <description> (#${ARGUMENTS})"
-     git push
-     ```
+    - Format and commit:
+      ```bash
+      git add <specific-files>
+      npx prettier --write $(git diff --cached --name-only) 2>/dev/null || true
+      git add $(git diff --cached --name-only) 2>/dev/null || true
+      git commit -m "fix: resolve self-check finding – <description> (#${ARGUMENTS})"
+      git push
+      ```
 
 6. Re-run the three audits. Repeat steps 4–6 until no `must-fix` items remain.
 
