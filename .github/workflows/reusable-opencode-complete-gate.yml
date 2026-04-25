@@ -3,8 +3,6 @@ name: OpenCode — Complete Gate
 on:
   workflow_call:
     secrets:
-      GITHUB_TOKEN:
-        required: true
       OPENCODE_API_KEY:
         required: true
 
