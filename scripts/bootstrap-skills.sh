@@ -14,11 +14,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-mkdir -p "$OUT_DIR"
+# Build into a temp dir to avoid cp copying files onto themselves when
+# local-dir and out-dir are the same path.
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 # 1. Copy shared skills
 if [[ -d "$SHARED_DIR" ]]; then
-  cp -r "$SHARED_DIR"/* "$OUT_DIR/"
+  cp -r "$SHARED_DIR"/* "$TMP_DIR/"
 fi
 
 # 2. Overlay local skills
@@ -26,9 +29,14 @@ if [[ -d "$LOCAL_DIR" ]]; then
   for skill in "$LOCAL_DIR"/*; do
     [[ -d "$skill" ]] || continue
     skill_name=$(basename "$skill")
-    mkdir -p "$OUT_DIR/$skill_name"
-    cp -r "$skill"/* "$OUT_DIR/$skill_name/"
+    mkdir -p "$TMP_DIR/$skill_name"
+    cp -r "$skill"/* "$TMP_DIR/$skill_name/"
   done
 fi
+
+# 3. Move merged result to output dir
+mkdir -p "$OUT_DIR"
+rm -rf "$OUT_DIR"/*
+cp -r "$TMP_DIR"/* "$OUT_DIR/"
 
 echo "Skills bootstrapped to $OUT_DIR"
