@@ -131,7 +131,7 @@ jobs:
         run: |
           COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
             --jq '.id' \
-            -f body="🤖 **OpenCode Complete Gate is processing this PR...**\n\nThe auto-review gate has started evaluating this PR. This comment will be updated when processing completes." || echo "")
+            -f body=$'🤖 **OpenCode Complete Gate is processing this PR...**\n\nThe auto-review gate has started evaluating this PR. This comment will be updated when processing completes.' || echo "")
           echo "comment_id=${COMMENT_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Install OpenCode
@@ -489,6 +489,7 @@ jobs:
             DETAILS="CI is passing. Triggered review-pr."
           fi
 
+          BODY=$(printf '%b' "${STATUS}\n\n${DETAILS}\n\n_Run ID: ${{ github.run_id }}_")
           gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
             -X PATCH \
-            -f body="${STATUS}\n\n${DETAILS}\n\n_Run ID: ${{ github.run_id }}_" || true
+            -f body="${BODY}" || true

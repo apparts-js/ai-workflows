@@ -51,7 +51,7 @@ jobs:
         run: |
           COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
             --jq '.id' \
-            -f body="🤖 **OpenCode is addressing review comments on this PR...**\n\nThe address-review workflow has started. This comment will be updated when the run completes." || echo "")
+            -f body=$'🤖 **OpenCode is addressing review comments on this PR...**\n\nThe address-review workflow has started. This comment will be updated when the run completes.' || echo "")
           echo "comment_id=${COMMENT_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Remove auto-review label
@@ -97,6 +97,7 @@ jobs:
           else
             STATUS="⚠️ **OpenCode address-review ended**"
           fi
+          BODY=$(printf '%b' "${STATUS}\n\n_Run ID: ${{ github.run_id }}_")
           gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
             -X PATCH \
-            -f body="${STATUS}\n\n_Run ID: ${{ github.run_id }}_" || true
+            -f body="${BODY}" || true

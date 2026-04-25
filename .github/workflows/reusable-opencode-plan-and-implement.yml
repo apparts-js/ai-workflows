@@ -50,7 +50,7 @@ jobs:
         run: |
           COMMENT_ID=$(gh api "repos/${REPO}/issues/${ISSUE}/comments" \
             --jq '.id' \
-            -f body="🤖 **OpenCode is planning and implementing this issue...**\n\nThe plan-and-implement skill has started. This comment will be updated when the run completes." || echo "")
+            -f body=$'🤖 **OpenCode is planning and implementing this issue...**\n\nThe plan-and-implement skill has started. This comment will be updated when the run completes.' || echo "")
           echo "comment_id=${COMMENT_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Remove auto-review label
@@ -100,6 +100,7 @@ jobs:
           else
             STATUS="⚠️ **OpenCode plan-and-implement ended**"
           fi
+          BODY=$(printf '%b' "${STATUS}\n\n_Run ID: ${{ github.run_id }}_")
           gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
             -X PATCH \
-            -f body="${STATUS}\n\n_Run ID: ${{ github.run_id }}_" || true
+            -f body="${BODY}" || true
