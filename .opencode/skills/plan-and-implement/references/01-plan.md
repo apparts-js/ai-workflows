@@ -15,8 +15,7 @@ The original issue body must remain untouched. Subtasks are tracked in a separat
    - [ ] Implement logic to pass tests
    - [ ] Update docs / README if needed
    - [ ] Open draft PR
-   - [ ] Fix issues found in audit
-   - [ ] CI passes and PR is ready for review"
+   - [ ] Fix issues found in audit"
    ```
 
 2. Load `references/02-create-pr.md` and continue in this session.
