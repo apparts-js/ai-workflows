@@ -5,6 +5,10 @@ on:
     secrets:
       OPENCODE_API_KEY:
         required: true
+      APP_ID:
+        required: true
+      APP_PRIVATE_KEY:
+        required: true
 
 jobs:
   complete-gate:
@@ -23,10 +27,17 @@ jobs:
       checks: read
       issues: write
     steps:
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app_token.outputs.token }}
 
       - name: Checkout shared workflows
         uses: actions/checkout@v4
@@ -44,7 +55,7 @@ jobs:
 
       - name: Ensure labels exist
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
           for i in 1 2 3; do
@@ -56,7 +67,7 @@ jobs:
       - name: Determine PR number and head SHA
         id: meta
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
           if [ "${{ github.event_name }}" == "workflow_run" ]; then
@@ -88,7 +99,7 @@ jobs:
       - name: Validate PR labels
         id: validate
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -130,7 +141,7 @@ jobs:
         if: steps.validate.outputs.should_run == 'true'
         id: progress_comment
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -146,7 +157,7 @@ jobs:
       - name: Count autofix attempts
         id: attempts
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -167,7 +178,7 @@ jobs:
       - name: Check mergeability
         id: mergeable
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -182,7 +193,7 @@ jobs:
       - name: Remove auto-review label (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -191,7 +202,7 @@ jobs:
       - name: Resolve merge conflicts
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
         run: |
@@ -200,7 +211,7 @@ jobs:
       - name: Record autofix attempt (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -214,7 +225,7 @@ jobs:
       - name: Re-add auto-review label (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -224,7 +235,7 @@ jobs:
       - name: Post exhaustion warning (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted == 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -235,7 +246,7 @@ jobs:
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.validate.outputs.should_run == 'true'
         id: ci
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ steps.meta.outputs.head_sha }}
         run: |
@@ -308,7 +319,7 @@ jobs:
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         id: completeness
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -358,7 +369,7 @@ jobs:
       - name: Remove auto-review label (CI failing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -367,7 +378,7 @@ jobs:
       - name: Run plan-and-implement skill (CI failing, incomplete)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
         run: |
@@ -376,7 +387,7 @@ jobs:
       - name: Run fix-pr skill (CI failing, complete)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
         run: |
@@ -385,7 +396,7 @@ jobs:
       - name: Record autofix attempt (CI failing, complete)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -399,7 +410,7 @@ jobs:
       - name: Re-add auto-review label (CI failing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -409,7 +420,7 @@ jobs:
       - name: Post exhaustion warning (CI failing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted == 'true' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -419,7 +430,7 @@ jobs:
       - name: Run review-pr skill (CI passing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing' && steps.validate.outputs.should_run == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
         run: |
@@ -428,7 +439,7 @@ jobs:
       - name: Promote PR to ready for review
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -437,7 +448,7 @@ jobs:
       - name: Reset autofix attempt labels
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing' && steps.validate.outputs.should_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -454,7 +465,7 @@ jobs:
             (steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted == 'true')
           )
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -463,7 +474,7 @@ jobs:
       - name: Update progress comment with final status
         if: always() && steps.validate.outputs.should_run == 'true' && steps.progress_comment.outputs.comment_id != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           REPO: ${{ github.repository }}
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
         run: |
