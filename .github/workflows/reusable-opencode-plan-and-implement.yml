@@ -83,7 +83,7 @@ jobs:
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
         run: |
           ISSUE="${{ github.event.issue.number || github.event.inputs.issue_number }}"
-          opencode run --model opencode-go/kimi-k2.6 "Load the plan-and-implement skill and run it for issue #${ISSUE}"
+          opencode run --model opencode-go/deepseek-v4-pro-max "Load the plan-and-implement skill and run it for issue #${ISSUE}"
 
       - name: Re-add auto-review label
         env:

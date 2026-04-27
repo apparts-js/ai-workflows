@@ -49,4 +49,4 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
         with:
-          model: opencode-go/kimi-k2.6
+          model: opencode-go/deepseek-v4-pro-max
