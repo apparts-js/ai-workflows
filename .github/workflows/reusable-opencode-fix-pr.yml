@@ -83,12 +83,13 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
+          VARIANT: max
         run: |
           CONTEXT="ci-failing"
           if echo "${{ github.event.comment.body }}" | grep -qi "review"; then
             CONTEXT="review-comments"
           fi
-          opencode run --model opencode-go/deepseek-v4-pro-max "Load the fix-pr skill and run it for PR #${{ github.event.issue.number || github.event.inputs.pr_number }} with context ${CONTEXT}"
+          opencode run --model opencode-go/deepseek-v4-pro "Load the fix-pr skill and run it for PR #${{ github.event.issue.number || github.event.inputs.pr_number }} with context ${CONTEXT}"
 
       - name: Re-add auto-review label
         if: always()

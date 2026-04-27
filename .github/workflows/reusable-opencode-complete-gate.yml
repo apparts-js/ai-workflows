@@ -231,8 +231,9 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
+          VARIANT: max
         run: |
-          opencode run --model opencode-go/deepseek-v4-pro-max "Load the resolve-pr-conflicts skill and run it for PR #${{ steps.meta.outputs.pr_number }}"
+          opencode run --model opencode-go/deepseek-v4-pro "Load the resolve-pr-conflicts skill and run it for PR #${{ steps.meta.outputs.pr_number }}"
 
       - name: Record autofix attempt (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
@@ -435,8 +436,9 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
+          VARIANT: max
         run: |
-          opencode run --model opencode-go/deepseek-v4-pro-max "Load the plan-and-implement skill and run it for issue #${{ steps.completeness.outputs.issue_number }}"
+          opencode run --model opencode-go/deepseek-v4-pro "Load the plan-and-implement skill and run it for issue #${{ steps.completeness.outputs.issue_number }}"
 
       - name: Update progress comment — fix-pr
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'true'
@@ -454,8 +456,9 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
+          VARIANT: max
         run: |
-          opencode run --model opencode-go/deepseek-v4-pro-max "Load the fix-pr skill and run it for PR #${{ steps.meta.outputs.pr_number }} with context ci-failing"
+          opencode run --model opencode-go/deepseek-v4-pro "Load the fix-pr skill and run it for PR #${{ steps.meta.outputs.pr_number }} with context ci-failing"
 
       - name: Record autofix attempt (CI failing, complete)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'true'
@@ -515,8 +518,9 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
+          VARIANT: high
         run: |
-          opencode run --model opencode-go/deepseek-v4-pro-high "Load the review-pr skill and run it for PR #${{ steps.meta.outputs.pr_number }}"
+          opencode run --model opencode-go/deepseek-v4-pro "Load the review-pr skill and run it for PR #${{ steps.meta.outputs.pr_number }}"
 
       - name: Promote PR to ready for review
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing' && steps.validate.outputs.should_run == 'true'

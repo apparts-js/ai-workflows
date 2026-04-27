@@ -68,10 +68,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
+          VARIANT: high
         run: |
           PR="${{ github.event.issue.number || github.event.inputs.pr_number }}"
           COMMENT="${{ github.event.comment.id || github.event.inputs.comment_id }}"
-          opencode run --model opencode-go/deepseek-v4-pro-high "Load the review-pr skill and run it for PR #${PR} with comment ID ${COMMENT}"
+          opencode run --model opencode-go/deepseek-v4-pro "Load the review-pr skill and run it for PR #${PR} with comment ID ${COMMENT}"
 
       - name: React to triggering PR comment
         if: success() && github.event_name != 'workflow_dispatch'
