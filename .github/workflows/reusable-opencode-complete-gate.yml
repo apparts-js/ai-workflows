@@ -223,7 +223,8 @@ jobs:
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
         run: |
           ATTEMPT=$(( ${{ steps.attempts.outputs.count }} + 1 ))
-          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="🤖 **OpenCode Complete Gate** — resolving merge conflicts (attempt ${ATTEMPT} of 3)..."
+          BODY=$(printf '🤖 **OpenCode Complete Gate** — resolving merge conflicts (attempt %s of 3)...\n\n[Run %s](https://github.com/%s/actions/runs/%s)' "$ATTEMPT" "${{ github.run_id }}" "$REPO" "${{ github.run_id }}")
+          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
 
       - name: Resolve merge conflicts
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true'
@@ -266,7 +267,8 @@ jobs:
           REPO: ${{ github.repository }}
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
         run: |
-          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="🤖 **OpenCode Complete Gate** — merge conflicts persist after 3 resolution attempts. Manual intervention required."
+          BODY=$(printf '🤖 **OpenCode Complete Gate** — merge conflicts persist after 3 resolution attempts. Manual intervention required.\n\n[Run %s](https://github.com/%s/actions/runs/%s)' "${{ github.run_id }}" "$REPO" "${{ github.run_id }}")
+          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
 
       - name: Post exhaustion warning (conflicts)
         if: steps.mergeable.outputs.has_conflicts == 'true' && steps.attempts.outputs.exhausted == 'true' && steps.validate.outputs.should_run == 'true'
@@ -285,7 +287,8 @@ jobs:
           REPO: ${{ github.repository }}
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
         run: |
-          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="🤖 **OpenCode Complete Gate** — waiting for CI checks to complete..."
+          BODY=$(printf '🤖 **OpenCode Complete Gate** — waiting for CI checks to complete...\n\n[Run %s](https://github.com/%s/actions/runs/%s)' "${{ github.run_id }}" "$REPO" "${{ github.run_id }}")
+          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
 
       - name: Wait for checks to finish
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.validate.outputs.should_run == 'true'
@@ -428,7 +431,8 @@ jobs:
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
           ISSUE_NUM: ${{ steps.completeness.outputs.issue_number }}
         run: |
-          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="🤖 **OpenCode Complete Gate** — CI is failing and implementation is incomplete. Running plan-and-implement for issue #${ISSUE_NUM}..."
+          BODY=$(printf '🤖 **OpenCode Complete Gate** — CI is failing and implementation is incomplete. Running plan-and-implement for issue #%s...\n\n[Run %s](https://github.com/%s/actions/runs/%s)' "$ISSUE_NUM" "${{ github.run_id }}" "$REPO" "${{ github.run_id }}")
+          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
 
       - name: Run plan-and-implement skill (CI failing, incomplete)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'false'
@@ -448,7 +452,8 @@ jobs:
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
         run: |
           ATTEMPT=$(( ${{ steps.attempts.outputs.count }} + 1 ))
-          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="🤖 **OpenCode Complete Gate** — CI is failing. Running fix-pr (attempt ${ATTEMPT} of 3)..."
+          BODY=$(printf '🤖 **OpenCode Complete Gate** — CI is failing. Running fix-pr (attempt %s of 3)...\n\n[Run %s](https://github.com/%s/actions/runs/%s)' "$ATTEMPT" "${{ github.run_id }}" "$REPO" "${{ github.run_id }}")
+          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
 
       - name: Run fix-pr skill (CI failing, complete)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted != 'true' && steps.validate.outputs.should_run == 'true' && steps.completeness.outputs.implementation_complete == 'true'
@@ -491,7 +496,8 @@ jobs:
           REPO: ${{ github.repository }}
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
         run: |
-          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="🤖 **OpenCode Complete Gate** — CI is failing after 3 autofix attempts. Manual intervention required."
+          BODY=$(printf '🤖 **OpenCode Complete Gate** — CI is failing after 3 autofix attempts. Manual intervention required.\n\n[Run %s](https://github.com/%s/actions/runs/%s)' "${{ github.run_id }}" "$REPO" "${{ github.run_id }}")
+          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
 
       - name: Post exhaustion warning (CI failing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'failing' && steps.attempts.outputs.exhausted == 'true' && steps.validate.outputs.should_run == 'true'
@@ -510,7 +516,8 @@ jobs:
           REPO: ${{ github.repository }}
           COMMENT_ID: ${{ steps.progress_comment.outputs.comment_id }}
         run: |
-          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="🤖 **OpenCode Complete Gate** — CI is passing. Running review-pr..."
+          BODY=$(printf '🤖 **OpenCode Complete Gate** — CI is passing. Running review-pr...\n\n[Run %s](https://github.com/%s/actions/runs/%s)' "${{ github.run_id }}" "$REPO" "${{ github.run_id }}")
+          gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
 
       - name: Run review-pr skill (CI passing)
         if: steps.mergeable.outputs.has_conflicts == 'false' && steps.ci.outputs.status == 'passing' && steps.validate.outputs.should_run == 'true'
@@ -606,7 +613,7 @@ jobs:
             DETAILS="CI is passing. Triggered review-pr."
           fi
 
-          BODY=$(printf '%b' "${STATUS}\n\n${DETAILS}\n\n_Run ID: ${{ github.run_id }}_")
+          BODY=$(printf '%b' "${STATUS}\n\n${DETAILS}\n\n[Run ${{ github.run_id }}](https://github.com/${REPO}/actions/runs/${{ github.run_id }})")
           gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
             -X PATCH \
             -f body="${BODY}" || true

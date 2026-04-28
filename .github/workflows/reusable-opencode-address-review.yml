@@ -109,7 +109,7 @@ jobs:
           else
             STATUS="⚠️ **OpenCode address-review ended**"
           fi
-          BODY=$(printf '%b' "${STATUS}\n\n_Run ID: ${{ github.run_id }}_")
+          BODY=$(printf '%b' "${STATUS}\n\n[Run ${{ github.run_id }}](https://github.com/${REPO}/actions/runs/${{ github.run_id }})")
           gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
             -X PATCH \
             -f body="${BODY}" || true
