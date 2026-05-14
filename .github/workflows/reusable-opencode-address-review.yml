@@ -16,7 +16,11 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.actor == 'phuhl') ||
       (github.event_name == 'pull_request_review' &&
        github.event.review.user.login == 'phuhl' &&
-       (github.event.review.state == 'changes_requested' || github.event.review.state == 'commented'))
+       (github.event.review.state == 'changes_requested' || github.event.review.state == 'commented')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/oc address-review') &&
+       github.actor == 'phuhl')
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -57,7 +61,7 @@ jobs:
         id: progress_comment
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
           COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
@@ -68,7 +72,7 @@ jobs:
       - name: Remove auto-review label
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
           gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "auto-review" || true
@@ -86,14 +90,14 @@ jobs:
           OPENCODE_DISABLE_EXTERNAL_SKILLS: "true"
           VARIANT: max
         run: |
-          opencode run --model opencode-go/deepseek-v4-pro "Load the fix-pr skill and run it for PR #${{ github.event.pull_request.number || github.event.inputs.pr_number }} with context review-comments" 2>&1 | tee /tmp/opencode-fix-pr.log
+          opencode run --model opencode-go/deepseek-v4-pro "Load the fix-pr skill and run it for PR #${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }} with context review-comments" 2>&1 | tee /tmp/opencode-fix-pr.log
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Post error comment on failure
         if: steps.fix_pr.outputs.exit_code != '0'
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
           ERROR_TAIL=$(tail -n 20 /tmp/opencode-fix-pr.log 2>/dev/null || echo "No log captured")
@@ -104,7 +108,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
           gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "auto-review"
