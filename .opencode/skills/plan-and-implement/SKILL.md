@@ -24,7 +24,17 @@ You are invoked to drive an issue labeled `opencode` to completion.
    ISSUE_BODY=$(gh issue view "$ARGUMENTS" --json body -q '.body')
    ISSUE_COMMENTS=$(gh issue view "$ARGUMENTS" --json comments -q '.comments[].body')
    ```
-3. If a PR already exists for this issue, fetch its comments and review comments too:
+3. Determine the base branch — check issue body and comments for stacking instructions (e.g. "stack on #42", "base on #42", "depends on #42"). If none found, default to `master`:
+   ```bash
+   STACK_ISSUE=$(printf '%s\n%s' "$ISSUE_BODY" "$ISSUE_COMMENTS" | grep -oPi '(?:stack|base|depends) (?:this )?(?:on |upon )?(?:PR |issue )?#\d+' | grep -oP '\d+' | head -1 || echo "")
+   if [ -n "$STACK_ISSUE" ]; then
+     STACK_BRANCH=$(gh pr list --state open --json number,headRefName -q ".[] | select(.headRefName | startswith(\"${STACK_ISSUE}-\")) | .headRefName" 2>/dev/null || echo "")
+     BASE_BRANCH="${STACK_BRANCH:-master}"
+   else
+     BASE_BRANCH="master"
+   fi
+   ```
+4. If a PR already exists for this issue, fetch its comments and review comments too:
    ```bash
    PR_NUMBER=$(gh pr list --state open --json number,headRefName -q ".[] | select(.headRefName | startswith(\"${ARGUMENTS}-\")) | .number")
    if [ -n "$PR_NUMBER" ]; then
@@ -78,3 +88,4 @@ Load the identified reference file and follow its instructions **from top to bot
 - **Read all comments on the issue and on the PR before implementing anything.** Previous review feedback, discussions, and issue comments may contain critical context. Re-reading them prevents repeating the same mistakes that were already pointed out.
 - **When writing code that could be misunderstood** — non-obvious patterns, intentional workarounds, deliberate deviations from convention — add an inline code comment explaining *why* the code is written that way. This prevents reviewers from flagging deliberate choices as errors.
 - **No code-line review comment may be left unaddressed.** Before marking any subtask complete, fetch all PR review comments on code lines. For each comment from a reviewer: either implement the suggested change, or reply with an explanation of why the current code is correct. After all comments are handled, verify with `scripts/verify-no-unresolved-comments.sh`. The final state must have zero unresolved code-line review comments.
+- **Respect stacking instructions in issue comments.** If any issue comment says to stack/base/depend on another issue or PR (e.g. "stack on #42"), that PR's branch becomes the base branch instead of `master`. The setup step already parses this into `$BASE_BRANCH`.

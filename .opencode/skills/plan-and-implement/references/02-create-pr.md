@@ -7,10 +7,11 @@ Create a branch, push it, open a draft PR, check off "Open draft PR", and immedi
 
 ### Create PR
 
-1. If no branch exists yet:
+1. If no branch exists yet, determine the base branch. The `$BASE_BRANCH` variable was set in the skill setup from stacking instructions in the issue, or defaults to `master`. Fall back if not set:
    ```bash
+   BASE_BRANCH="${BASE_BRANCH:-master}"
    git fetch origin
-   git checkout master && git pull
+   git checkout "$BASE_BRANCH" && git pull
    git checkout -b ${ARGUMENTS}-<short-slug>
    git push -u origin ${ARGUMENTS}-<short-slug>
    ```
@@ -25,7 +26,7 @@ Create a branch, push it, open a draft PR, check off "Open draft PR", and immedi
      --title "<concise title>" \
      --body "$PR_BODY" \
      --head "${ARGUMENTS}-<short-slug>" \
-     --base master
+     --base "$BASE_BRANCH"
    ```
 
 3. Find the PR number:
